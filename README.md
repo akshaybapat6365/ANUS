@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ANUS Unified - Autonomous Networked Utility System
+
+<p align="center">
+  <img src="public/anus_logo.png" alt="ANUS Logo" width="200"/>
+</p>
+
+ANUS (Autonomous Networked Utility System) is a powerful, flexible AI agent framework that combines a Python backend with a Next.js web interface.
+
+## Features
+
+- **Hybrid Agent System**: Use single-agent mode for simpler tasks and multi-agent mode for complex problems
+- **Web Interface**: Modern, responsive UI built with Next.js and Tailwind CSS
+- **Code Execution**: Sandbox for executing and testing code
+- **Task Management**: Break down complex tasks into subtasks
+- **Extensibility**: Easy to extend with custom tools and capabilities
+
+## Project Structure
+
+The project consists of two main components:
+
+1. **Frontend**: Next.js web application with TypeScript and Tailwind CSS
+2. **Backend**: Python-based API server using FastAPI
 
 ## Getting Started
 
-First, run the development server:
+### Using Docker (Recommended)
+
+The easiest way to run ANUS Unified is with Docker:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Build and start the application
+docker-compose up --build
+
+# The web interface will be available at http://localhost:3000
+# The API server will be available at http://localhost:8000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Manual Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+#### Backend
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cd backend
+pip install -r requirements.txt
+python server.py
+```
 
-## Learn More
+#### Frontend
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Configuration
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Backend configuration can be modified in `backend/config.yaml`
+- Frontend environment variables can be set in `.env.local`
 
-## Deploy on Vercel
+## Development
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This project uses:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- TypeScript for type safety
+- ESLint for code quality
+- Prettier for code formatting
+- Tailwind CSS for styling
+
+## License
+
+MIT

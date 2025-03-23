@@ -1,386 +1,218 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import type { LinkProps } from 'next/link';
+import Link from 'next/link';
 
 export default function Home() {
-  const [task, setTask] = useState('');
-  const [mode, setMode] = useState('single');
-  const [results, setResults] = useState<Array<{id: string, task: string, result: string}>>([]);
-  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string>('');
+  const [response, setResponse] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeTask, setActiveTask] = useState<string | null>(null);
-  const resultRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [apiTest, setApiTest] = useState<Record<string, any> | null>(null);
+  const [debug, setDebug] = useState<Record<string, any>>({});
 
-  // Auto-scroll to bottom of results when new content is added
-  useEffect(() => {
-    if (resultRef.current && activeTask) {
-      resultRef.current.scrollTop = resultRef.current.scrollHeight;
-    }
-  }, [activeTask]);
+  // Add debug info
+  const addDebugInfo = (key: string, data: any) => {
+    setDebug(prev => ({ ...prev, [key]: data }));
+  };
 
-  // Focus input on load
+  // Test the API connection on load
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
+    fetch('/api/test')
+      .then(res => res.json())
+      .then(data => {
+        setApiTest(data);
+        addDebugInfo('api_test', data);
+        console.log('API test result:', data);
+      })
+      .catch(err => {
+        console.error('API test error:', err);
+        setError(`API test failed: ${err.message}`);
+        addDebugInfo('api_test_error', err.message);
+      });
   }, []);
 
-  const handleSubmit = async () => {
-    if (!task.trim()) {
-      setError('Please enter a task description');
-      return;
-    }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim() || isLoading) return;
 
+    setIsLoading(true);
     setError('');
-    setLoading(true);
-    
-    const taskId = `task-${Date.now()}`;
-    const newTask = {
-      id: taskId,
-      task: task,
-      result: ''
-    };
-    
-    setResults(prev => [...prev, newTask]);
-    setActiveTask(taskId);
-    
+    setResponse('');
+    setDebug({});
+
     try {
-      const response = await fetch('/api/task', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task, mode }),
+      addDebugInfo('request', {
+        prompt: message,
+        mode: 'single'
       });
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to process task');
+      // Use our proxy API
+      const res = await fetch('/api/proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: message,
+          mode: 'single'
+        }),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        addDebugInfo('response_error', {
+          status: res.status,
+          text: errorText
+        });
+        throw new Error(`API error: ${res.status} - ${errorText}`);
       }
 
-      setResults(prev => 
-        prev.map(t => 
-          t.id === taskId 
-            ? { ...t, result: data.result } 
-            : t
-        )
-      );
+      const data = await res.json();
+      addDebugInfo('task_created', data);
+      console.log('Task created:', data);
+
+      if (data.status === 'completed' && data.result) {
+        // Handle immediate response
+        const result = typeof data.result === 'string' ? data.result : JSON.stringify(data.result, null, 2);
+        setResponse(result);
+        addDebugInfo('immediate_result', result);
+        setIsLoading(false);
+        return;
+      }
+
+      // Poll for result
+      const taskId = data.task_id;
+      
+      const checkResult = async () => {
+        try {
+          addDebugInfo('polling_task', taskId);
+          const statusRes = await fetch(`/api/proxy?taskId=${taskId}`);
+          
+          if (!statusRes.ok) {
+            const errorText = await statusRes.text();
+            addDebugInfo('polling_error', {
+              status: statusRes.status,
+              text: errorText
+            });
+            throw new Error(`Status API error: ${statusRes.status} - ${errorText}`);
+          }
+
+          const statusData = await statusRes.json();
+          addDebugInfo('task_status', statusData);
+          console.log('Task status:', statusData);
+
+          if (statusData.status === 'completed' && statusData.result) {
+            // Complete
+            const result = typeof statusData.result === 'string' 
+              ? statusData.result 
+              : JSON.stringify(statusData.result, null, 2);
+            setResponse(result);
+            addDebugInfo('final_result', result);
+            setIsLoading(false);
+          } else if (statusData.status === 'failed') {
+            // Failed
+            const errorMsg = statusData.result?.error || 'Unknown error';
+            setError(`Task failed: ${errorMsg}`);
+            addDebugInfo('task_failed', errorMsg);
+            setIsLoading(false);
+          } else {
+            // Still running, check again in 1 second
+            addDebugInfo('still_running', statusData.status);
+            setTimeout(checkResult, 1000);
+          }
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          console.error('Error checking status:', err);
+          setError(`Error checking status: ${errorMsg}`);
+          addDebugInfo('status_check_error', errorMsg);
+          setIsLoading(false);
+        }
+      };
+
+      checkResult();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-      setResults(prev => 
-        prev.map(t => 
-          t.id === taskId 
-            ? { ...t, result: `Error: ${err instanceof Error ? err.message : 'An unexpected error occurred'}` } 
-            : t
-        )
-      );
-    } finally {
-      setLoading(false);
-      setTask('');
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error('Error:', err);
+      setError(`Error: ${errorMsg}`);
+      addDebugInfo('submit_error', errorMsg);
+      setIsLoading(false);
     }
   };
-
-  const getCurrentTaskResult = () => {
-    if (!activeTask) return null;
-    return results.find(r => r.id === activeTask);
-  };
-
-  const currentTaskResult = getCurrentTaskResult();
-  
-  // Dummy code for display in the code editor
-  const codeExample = `import sys
-import os
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Initialize API client
-client = ApiClient()
-
-# Create directory for charts if it doesn't exist
-if not os.path.exists('../charts'):
-    os.makedirs('../charts')
-
-print("Analyzing Tesla's financial data...")
-
-# Since Yahoo Finance API doesn't directly provide income statement, balance sheet,
-# and cash flow data,
-# we'll create a comprehensive analysis based on available data and supplement with
-# research
-
-# Financial data for Tesla (manually compiled from recent quarterly and annual
-# reports)
-# This data would typically come from financial APIs, but we'll use this for
-# demonstration
-financial_data = {
-    'revenue': {
-        '2019': 24578,
-        '2020': 31536,
-        '2021': 53823,
-        '2022': 81462,
-        '2023': 96773,
-    }
-}`;
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Top Navigation */}
-      <header className="h-14 border-b border-[rgba(var(--border-color),0.5)] flex items-center justify-between px-4">
-        <div className="flex items-center">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Manus logo">
-            <title>Manus</title>
-            <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M12 8v8M8 12h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="ml-2 text-lg font-semibold">manus</span>
+    <main className="flex min-h-screen flex-col items-center justify-between p-6 bg-gray-900 text-white">
+      <div className="w-full max-w-3xl flex flex-col gap-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold text-center">ANUS Test Interface</h1>
+          <Link 
+            href="/settings" 
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md transition"
+          >
+            Settings
+          </Link>
         </div>
         
-        <div className="flex items-center">
-          <span className="text-base font-normal mr-8">Comprehensive Tesla Stock Analysis and Investment Insights</span>
-          <button aria-label="Share link" className="mr-4 p-1 hover:bg-[rgba(255,255,255,0.1)] rounded">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <title>Share</title>
-              <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M20 7a3 3 0 11-6 0 3 3 0 016 0zM10 12a3 3 0 11-6 0 3 3 0 016 0zM20 17a3 3 0 11-6 0 3 3 0 016 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-          <button aria-label="Clone document" className="mr-4 p-1 hover:bg-[rgba(255,255,255,0.1)] rounded">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <title>Clone</title>
-              <path d="M20 8h-9a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-9a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-          <a href="#" className="manus-button">Log in</a>
-        </div>
-      </header>
-
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left panel - Conversation */}
-        <div className="w-[55%] flex flex-col bg-[rgb(var(--background-rgb))]">
-          {/* Instruction area */}
-          <div className="p-5 border-b border-[rgba(var(--border-color),0.5)] overflow-y-auto max-h-[300px]">
-            <div className="p-6 rounded-md bg-[rgba(var(--sidebar-bg),0.5)] mb-2">
-              <h2 className="text-base font-medium mb-4">I'd like a thorough analysis of Tesla stock, including:</h2>
-              <ul className="list-none pl-0 space-y-2">
-                <li>Summary: Company overview, key metrics, performance data and investment recommendations</li>
-                <li>Financial Data: Revenue trends, profit margins, balance sheet and cash flow analysis</li>
-                <li>Market Sentiment: Analyst ratings, sentiment indicators and news impact</li>
-                <li>Technical Analysis: Price trends, technical indicators and support/resistance levels</li>
-                <li>Compare Assets: Market share and financial metrics vs. key competitors</li>
-                <li>Value Investor: Intrinsic value, growth potential and risk factors</li>
-                <li>Investment Thesis: SWOT analysis and recommendations for different investor types</li>
-              </ul>
-            </div>
-            <div className="mb-1 flex items-center">
-              <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-[rgba(var(--accent-rgb),0.2)] text-xs mr-2 text-[rgb(var(--accent-rgb))]">1</span>
-              <span className="text-sm text-gray-400">Connected to datasource(6)</span>
-              <button aria-label="Toggle dropdown" className="ml-1 p-1 hover:bg-[rgba(255,255,255,0.1)] rounded">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <title>Toggle</title>
-                  <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          {/* Tasks and steps */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="pl-5 mb-4">
-              <div className="flex items-start">
-                <div className="flex items-center mt-1 mr-2">
-                  <div className="checkmark-circle completed">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor" aria-label="Completed item">
-                      <title>Completed</title>
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <button 
-                    type="button"
-                    className="w-full text-left flex items-center text-gray-300 hover:text-white"
-                    aria-label="Expand task"
-                    onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.click()}
-                    onClick={() => {}}
-                  >
-                    <span className="flex-1">Create comprehensive Tesla stock analysis task list</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="pl-5 mb-4">
-              <div className="flex items-start">
-                <div className="flex items-center mt-1 mr-2">
-                  <div className="checkmark-circle completed">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor" aria-label="Completed item">
-                      <title>Completed</title>
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <div className="text-gray-300">Creating a plan for Tesla stock analysis</div>
-                  <div className="bg-[rgba(var(--sidebar-bg),0.3)] rounded p-2 mt-1 text-sm">
-                    <div className="mb-1 flex items-center">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-400 mr-1">
-                        <path d="M8 9h8M8 13h6M8 17h4M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      <span className="text-gray-400">Executing command</span>
-                    </div>
-                    <code className="block text-xs text-gray-300 bg-[rgba(0,0,0,0.2)] p-2 rounded font-mono">mkdir -p tesla_analysis && cd tesla_analysis && touch todo.md</code>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pl-5 mb-4">
-              <div className="flex items-start">
-                <div className="flex items-center mt-1 mr-2">
-                  <div className="checkmark-circle completed">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor" aria-label="Completed item">
-                      <title>Completed</title>
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <div className="text-gray-300">Creating a todo list for Tesla stock analysis</div>
-                  <div className="bg-[rgba(var(--sidebar-bg),0.3)] rounded p-2 mt-1 text-sm">
-                    <div className="mb-1 flex items-center">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-400 mr-1">
-                        <path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      <span className="text-gray-400">Creating file</span>
-                    </div>
-                    <code className="block text-xs text-gray-300 font-mono">tesla_analysis/todo.md</code>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pl-5 mb-4">
-              <div className="flex items-start">
-                <div className="flex items-center mt-1 mr-2">
-                  <div className="checkmark-circle">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor" aria-label="In progress item">
-                      <title>In progress</title>
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <div className="text-gray-300">Collect and analyze Tesla's financial data</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Input area */}
-          <div className="border-t border-[rgba(var(--border-color),0.5)] p-4">
-            <div className="flex items-center">
-              <input
-                ref={inputRef}
-                type="text"
-                value={task}
-                onChange={(e) => setTask(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                placeholder="Ask a follow-up question..."
-                className="flex-1 bg-[rgba(var(--code-bg),0.6)] border border-[rgba(var(--border-color),0.7)] rounded px-4 py-2 text-sm"
-                aria-label="Ask a follow-up question"
-              />
-            </div>
-            {error && <p className="mt-2 text-red-400 text-sm">{error}</p>}
-          </div>
+        {/* API Test Results */}
+        <div className="bg-gray-800 rounded-lg p-4 mt-4">
+          <h2 className="text-xl font-semibold mb-2">API Test Results</h2>
+          {apiTest ? (
+            <pre className="whitespace-pre-wrap bg-gray-700 p-4 rounded text-sm">{JSON.stringify(apiTest, null, 2)}</pre>
+          ) : error ? (
+            <div className="text-red-400">{error}</div>
+          ) : (
+            <div>Loading API test results...</div>
+          )}
         </div>
 
-        {/* Right panel - Code Editor */}
-        <div className="w-[45%] border-l border-[rgba(var(--border-color),0.5)] bg-[rgb(var(--editor-bg))]">
-          {/* Editor header */}
-          <div className="border-b border-[rgba(var(--border-color),0.5)] p-3 flex justify-between items-center">
-            <div className="flex items-center">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mr-2">
-                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5L12 1z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span className="text-base font-medium">Manus's Computer</span>
-              <button className="ml-1 opacity-40 hover:opacity-100">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Expand">
-                  <title>Expand</title>
-                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex items-center text-sm text-gray-400">
-              <span>Manus is using</span>
-              <span className="ml-1 text-white">Editor</span>
-            </div>
+        {/* Input Form */}
+        <form onSubmit={handleSubmit} className="bg-gray-800 p-6 rounded-lg">
+          <div className="flex flex-col gap-4">
+            <label htmlFor="message" className="text-lg font-medium">
+              Enter your message:
+            </label>
+            <textarea
+              id="message"
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              className="w-full p-4 border rounded-md bg-gray-700 border-gray-600 text-white"
+              rows={3}
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              className={`px-6 py-3 rounded-md font-medium bg-indigo-600 hover:bg-indigo-500 transition ${
+                isLoading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Processing...' : 'Send Request'}
+            </button>
           </div>
+        </form>
 
-          {/* Editor content */}
-          <div className="p-3">
-            <div className="flex items-center text-sm text-gray-400 mb-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mr-1">
-                <path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>Creating file</span>
-              <span className="ml-1 text-gray-300">tesla_analysis/data/tesla_financial_analysis.py</span>
-            </div>
-
-            <div className="bg-[rgb(var(--code-bg))] rounded-md p-3">
-              <div className="flex justify-between items-center text-xs text-gray-400 mb-2">
-                <div>tesla_financial_analysis.py</div>
-                <div className="flex items-center">
-                  <button className="opacity-60 hover:opacity-100 p-1">Diff</button>
-                  <button className="opacity-60 hover:opacity-100 p-1">Original</button>
-                  <button className="text-white p-1">Modified</button>
-                </div>
-              </div>
-
-              <div className="code-editor overflow-auto text-xs" style={{maxHeight: "calc(100vh - 250px)"}}>
-                <pre className="text-gray-300 whitespace-pre">{codeExample.split('\n').map((line, i) => (
-                  <div key={i} className="flex">
-                    <span className="line-number">{i+1}</span>
-                    <span>{line}</span>
-                  </div>
-                ))}</pre>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center mt-3">
-              <div className="flex items-center text-gray-400 text-sm">
-                <button aria-label="Previous" className="opacity-60 hover:opacity-100 p-1">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <title>Previous</title>
-                    <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-                <button aria-label="Next" className="opacity-60 hover:opacity-100 p-1">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <title>Next</title>
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-                <div className="ml-2">3/10</div>
-              </div>
-              <div className="flex items-center">
-                <div className="bg-[rgb(var(--accent-rgb))] rounded-full w-3 h-3 mr-1.5"></div>
-                <span className="text-sm">Manus is working: Collect and analyze Tesla's financial data</span>
-                <button className="ml-2 opacity-40 hover:opacity-100">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Expand">
-                    <title>Expand</title>
-                    <path d="M18 15l-6-6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-              </div>
-              <div className="text-gray-400 text-xs">0:00 Using terminal</div>
-            </div>
+        {/* Response or Error Display */}
+        {response && (
+          <div className="bg-gray-800 p-6 rounded-lg">
+            <h2 className="text-xl font-semibold mb-2">Response:</h2>
+            <pre className="whitespace-pre-wrap bg-gray-700 p-4 rounded text-sm">{response}</pre>
           </div>
+        )}
+        
+        {error && (
+          <div className="bg-red-900/50 border border-red-800 p-4 rounded-lg text-red-200">
+            <h2 className="text-lg font-semibold mb-1">Error:</h2>
+            <p>{error}</p>
+          </div>
+        )}
+        
+        {/* Debug Info */}
+        <div className="bg-gray-800 rounded-lg p-4 mt-4 text-gray-300">
+          <h2 className="text-xl font-semibold mb-2">Debug Information</h2>
+          <pre className="whitespace-pre-wrap bg-gray-700 p-4 rounded text-sm">{JSON.stringify(debug, null, 2)}</pre>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
