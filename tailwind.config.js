@@ -8,15 +8,28 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Dark theme colors
+        // Pure black theme colors
         'gray': {
-          900: '#121212',
-          800: '#1e1e1e',
-          700: '#2d2d2d',
-          600: '#3c3c3c',
-          500: '#4b4b4b',
-          400: '#9ca3af',
-        }
+          950: '#000000',
+          900: '#0A0A0A',
+          800: '#111111',
+          700: '#1A1A1A',
+          600: '#222222',
+          500: '#2A2A2A',
+          400: '#777777',
+          300: '#999999',
+        },
+        'blue': {
+          600: '#2563eb',
+          700: '#1d4ed8',
+        },
+      },
+      boxShadow: {
+        'subtle': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+      },
+      animation: {
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
     },
   },
