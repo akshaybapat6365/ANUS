@@ -4,8 +4,12 @@
 
 :root {
   --foreground-rgb: 255, 255, 255;
-  --background-rgb: 0, 0, 0;
+  --background-rgb: 16, 16, 16;
   --accent-rgb: 59, 130, 246;
+  --sidebar-bg: 24, 24, 26;
+  --editor-bg: 28, 28, 30;
+  --code-bg: 35, 35, 37;
+  --border-color: 48, 48, 50;
 }
 
 body {
@@ -15,8 +19,8 @@ body {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -24,8 +28,8 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(70, 70, 70, 0.8);
-  border-radius: 4px;
+  background: rgba(80, 80, 80, 0.5);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -36,4 +40,41 @@ body {
 input:focus, select:focus, textarea:focus {
   outline: none;
   box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.4);
+}
+
+.code-font {
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+}
+
+.terminal-cursor::after {
+  content: '|';
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  from, to { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.task-item {
+  transition: background-color 0.2s ease;
+}
+
+.task-item:hover {
+  background-color: rgba(50, 50, 52, 0.5);
+}
+
+.checkmark-circle {
+  border-radius: 50%;
+  border: 1px solid rgba(100, 100, 100, 0.5);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkmark-circle.completed {
+  background-color: rgb(var(--accent-rgb));
+  border-color: transparent;
 }
