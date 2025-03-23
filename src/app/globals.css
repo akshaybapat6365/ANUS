@@ -4,17 +4,19 @@
 
 :root {
   --foreground-rgb: 255, 255, 255;
-  --background-rgb: 16, 16, 16;
-  --accent-rgb: 59, 130, 246;
+  --background-rgb: 18, 18, 18;
+  --accent-rgb: 29, 161, 242;
   --sidebar-bg: 24, 24, 26;
-  --editor-bg: 28, 28, 30;
-  --code-bg: 35, 35, 37;
-  --border-color: 48, 48, 50;
+  --editor-bg: 22, 22, 26;
+  --code-bg: 28, 28, 32;
+  --border-color: 45, 45, 48;
+  --manus-blue: 29, 161, 242;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-rgb));
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
 /* Custom scrollbar */
@@ -28,7 +30,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(80, 80, 80, 0.5);
+  background: rgba(70, 70, 70, 0.5);
   border-radius: 3px;
 }
 
@@ -40,6 +42,13 @@ body {
 input:focus, select:focus, textarea:focus {
   outline: none;
   box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.4);
+}
+
+.code-editor {
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  background-color: rgb(var(--editor-bg));
 }
 
 .code-font {
@@ -77,4 +86,27 @@ input:focus, select:focus, textarea:focus {
 .checkmark-circle.completed {
   background-color: rgb(var(--accent-rgb));
   border-color: transparent;
+}
+
+.manus-button {
+  background-color: rgb(var(--manus-blue));
+  color: white;
+  font-weight: 500;
+  border-radius: 4px;
+  padding: 6px 16px;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.manus-button:hover {
+  background-color: rgba(var(--manus-blue), 0.9);
+}
+
+.line-number {
+  color: rgba(255, 255, 255, 0.3);
+  user-select: none;
+  text-align: right;
+  padding-right: 12px;
+  width: 40px;
+  display: inline-block;
 }

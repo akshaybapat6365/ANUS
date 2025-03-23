@@ -14,10 +14,10 @@ export default function Home() {
 
   // Auto-scroll to bottom of results when new content is added
   useEffect(() => {
-    if (resultRef.current) {
+    if (resultRef.current && activeTask) {
       resultRef.current.scrollTop = resultRef.current.scrollHeight;
     }
-  }, [results, activeTask]);
+  }, [activeTask]);
 
   // Focus input on load
   useEffect(() => {
@@ -86,149 +86,299 @@ export default function Home() {
   };
 
   const currentTaskResult = getCurrentTaskResult();
+  
+  // Dummy code for display in the code editor
+  const codeExample = `import sys
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Initialize API client
+client = ApiClient()
+
+# Create directory for charts if it doesn't exist
+if not os.path.exists('../charts'):
+    os.makedirs('../charts')
+
+print("Analyzing Tesla's financial data...")
+
+# Since Yahoo Finance API doesn't directly provide income statement, balance sheet,
+# and cash flow data,
+# we'll create a comprehensive analysis based on available data and supplement with
+# research
+
+# Financial data for Tesla (manually compiled from recent quarterly and annual
+# reports)
+# This data would typically come from financial APIs, but we'll use this for
+# demonstration
+financial_data = {
+    'revenue': {
+        '2019': 24578,
+        '2020': 31536,
+        '2021': 53823,
+        '2022': 81462,
+        '2023': 96773,
+    }
+}`;
 
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
-      <div className="w-64 bg-[rgb(var(--sidebar-bg))] border-r border-[rgba(var(--border-color),0.5)] flex flex-col">
-        {/* Logo */}
-        <div className="p-4 border-b border-[rgba(var(--border-color),0.5)] flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/>
-            <path d="M12 16v-4"/>
-            <path d="M12 8h.01"/>
+    <div className="flex flex-col h-screen">
+      {/* Top Navigation */}
+      <header className="h-14 border-b border-[rgba(var(--border-color),0.5)] flex items-center justify-between px-4">
+        <div className="flex items-center">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Manus logo">
+            <title>Manus</title>
+            <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M12 8v8M8 12h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <h1 className="text-xl font-bold">ANUS</h1>
+          <span className="ml-2 text-lg font-semibold">manus</span>
         </div>
         
-        {/* Task History */}
-        <div className="flex-1 overflow-auto p-1">
-          <p className="px-3 py-2 text-xs font-medium text-gray-400 uppercase">Task History</p>
-          <div className="space-y-0.5">
-            {results.map((result) => (
-              <div 
-                key={result.id} 
-                className={`task-item p-2 rounded cursor-pointer flex items-center ${activeTask === result.id ? 'bg-[rgba(var(--code-bg),1)]' : 'hover:bg-[rgba(var(--code-bg),0.5)]'}`}
-                onClick={() => setActiveTask(result.id)}
-              >
-                <div className={`checkmark-circle mr-2 ${result.result ? 'completed' : ''}`}>
-                  {result.result && (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+        <div className="flex items-center">
+          <span className="text-base font-normal mr-8">Comprehensive Tesla Stock Analysis and Investment Insights</span>
+          <button aria-label="Share link" className="mr-4 p-1 hover:bg-[rgba(255,255,255,0.1)] rounded">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <title>Share</title>
+              <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M20 7a3 3 0 11-6 0 3 3 0 016 0zM10 12a3 3 0 11-6 0 3 3 0 016 0zM20 17a3 3 0 11-6 0 3 3 0 016 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button aria-label="Clone document" className="mr-4 p-1 hover:bg-[rgba(255,255,255,0.1)] rounded">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <title>Clone</title>
+              <path d="M20 8h-9a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-9a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <a href="#" className="manus-button">Log in</a>
+        </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left panel - Conversation */}
+        <div className="w-[55%] flex flex-col bg-[rgb(var(--background-rgb))]">
+          {/* Instruction area */}
+          <div className="p-5 border-b border-[rgba(var(--border-color),0.5)] overflow-y-auto max-h-[300px]">
+            <div className="p-6 rounded-md bg-[rgba(var(--sidebar-bg),0.5)] mb-2">
+              <h2 className="text-base font-medium mb-4">I'd like a thorough analysis of Tesla stock, including:</h2>
+              <ul className="list-none pl-0 space-y-2">
+                <li>Summary: Company overview, key metrics, performance data and investment recommendations</li>
+                <li>Financial Data: Revenue trends, profit margins, balance sheet and cash flow analysis</li>
+                <li>Market Sentiment: Analyst ratings, sentiment indicators and news impact</li>
+                <li>Technical Analysis: Price trends, technical indicators and support/resistance levels</li>
+                <li>Compare Assets: Market share and financial metrics vs. key competitors</li>
+                <li>Value Investor: Intrinsic value, growth potential and risk factors</li>
+                <li>Investment Thesis: SWOT analysis and recommendations for different investor types</li>
+              </ul>
+            </div>
+            <div className="mb-1 flex items-center">
+              <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-[rgba(var(--accent-rgb),0.2)] text-xs mr-2 text-[rgb(var(--accent-rgb))]">1</span>
+              <span className="text-sm text-gray-400">Connected to datasource(6)</span>
+              <button aria-label="Toggle dropdown" className="ml-1 p-1 hover:bg-[rgba(255,255,255,0.1)] rounded">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <title>Toggle</title>
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Tasks and steps */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="pl-5 mb-4">
+              <div className="flex items-start">
+                <div className="flex items-center mt-1 mr-2">
+                  <div className="checkmark-circle completed">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor" aria-label="Completed item">
+                      <title>Completed</title>
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                  )}
+                  </div>
                 </div>
-                <div className="truncate flex-1">
-                  <p className="text-sm truncate">{result.task}</p>
+                <div className="flex-1">
+                  <button 
+                    type="button"
+                    className="w-full text-left flex items-center text-gray-300 hover:text-white"
+                    aria-label="Expand task"
+                    onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.click()}
+                    onClick={() => {}}
+                  >
+                    <span className="flex-1">Create comprehensive Tesla stock analysis task list</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-        
-        {/* Mode Selector */}
-        <div className="p-3 border-t border-[rgba(var(--border-color),0.5)]">
-          <label className="text-xs text-gray-400 block mb-1.5">Agent Mode</label>
-          <select 
-            value={mode}
-            onChange={(e) => setMode(e.target.value)}
-            className="w-full bg-[rgba(var(--code-bg),1)] border border-[rgba(var(--border-color),0.5)] rounded px-2 py-1.5 text-sm"
-          >
-            <option value="single">Single Agent</option>
-            <option value="multi">Multi Agent</option>
-            <option value="auto">Auto</option>
-          </select>
-        </div>
-      </div>
-      
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col bg-[rgb(var(--editor-bg))]">
-        {/* Header */}
-        <div className="border-b border-[rgba(var(--border-color),0.5)] p-4 flex justify-between items-center">
-          <div className="flex items-center">
-            <h2 className="text-lg font-medium">Task Runner</h2>
-            <div className="ml-2 px-2 py-0.5 rounded-md bg-blue-600 text-xs font-medium">BETA</div>
-          </div>
-          <p className="text-sm text-gray-400">Autonomous Networked Utility System</p>
-        </div>
-        
-        {/* Task Results Area */}
-        <div className="flex-1 overflow-auto p-4" ref={resultRef}>
-          {!results.length ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mb-4 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-              </svg>
-              <p className="text-lg">Enter a task to get started</p>
-              <p className="text-sm mt-2">Example: "Research the latest advancements in AI"</p>
             </div>
-          ) : (
-            <div className="space-y-6">
-              {currentTaskResult && (
-                <div className="conversation-item">
-                  <div className="flex items-start mb-4">
-                    <div className="bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 mt-1 flex-shrink-0">
-                      <span className="text-sm font-semibold">Q</span>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-sm mb-1">Your task:</p>
-                      <p className="text-white">{currentTaskResult.task}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <div className="bg-blue-600 rounded-full w-8 h-8 flex items-center justify-center mr-3 mt-1 flex-shrink-0">
-                      <span className="text-sm font-semibold">AI</span>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-gray-400 text-sm mb-1">Result:</p>
-                      {!currentTaskResult.result && loading ? (
-                        <div className="p-3 bg-[rgba(var(--code-bg),1)] rounded code-font">
-                          <span className="flex items-center">
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Processing task<span className="terminal-cursor"></span>
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="p-3 bg-[rgba(var(--code-bg),1)] rounded code-font whitespace-pre-wrap">
-                          {currentTaskResult.result || "Waiting for response..."}
-                        </div>
-                      )}
-                    </div>
+
+            <div className="pl-5 mb-4">
+              <div className="flex items-start">
+                <div className="flex items-center mt-1 mr-2">
+                  <div className="checkmark-circle completed">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor" aria-label="Completed item">
+                      <title>Completed</title>
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
                   </div>
                 </div>
-              )}
+                <div className="flex-1">
+                  <div className="text-gray-300">Creating a plan for Tesla stock analysis</div>
+                  <div className="bg-[rgba(var(--sidebar-bg),0.3)] rounded p-2 mt-1 text-sm">
+                    <div className="mb-1 flex items-center">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-400 mr-1">
+                        <path d="M8 9h8M8 13h6M8 17h4M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span className="text-gray-400">Executing command</span>
+                    </div>
+                    <code className="block text-xs text-gray-300 bg-[rgba(0,0,0,0.2)] p-2 rounded font-mono">mkdir -p tesla_analysis && cd tesla_analysis && touch todo.md</code>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
-        
-        {/* Input Area */}
-        <div className="border-t border-[rgba(var(--border-color),0.5)] p-4">
-          <div className="flex items-center">
-            <input
-              ref={inputRef}
-              type="text"
-              value={task}
-              onChange={(e) => setTask(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-              placeholder="Enter your task here..."
-              className="flex-1 bg-[rgba(var(--code-bg),1)] border border-[rgba(var(--border-color),0.5)] rounded-l px-4 py-2 text-sm"
-            />
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading}
-              className={`${loading ? 'bg-gray-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-medium rounded-r px-4 py-2 transition-colors`}
-            >
-              {loading ? (
-                <span>Running...</span>
-              ) : 'Run Task'}
-            </button>
+
+            <div className="pl-5 mb-4">
+              <div className="flex items-start">
+                <div className="flex items-center mt-1 mr-2">
+                  <div className="checkmark-circle completed">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor" aria-label="Completed item">
+                      <title>Completed</title>
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div className="text-gray-300">Creating a todo list for Tesla stock analysis</div>
+                  <div className="bg-[rgba(var(--sidebar-bg),0.3)] rounded p-2 mt-1 text-sm">
+                    <div className="mb-1 flex items-center">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-400 mr-1">
+                        <path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span className="text-gray-400">Creating file</span>
+                    </div>
+                    <code className="block text-xs text-gray-300 font-mono">tesla_analysis/todo.md</code>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pl-5 mb-4">
+              <div className="flex items-start">
+                <div className="flex items-center mt-1 mr-2">
+                  <div className="checkmark-circle">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor" aria-label="In progress item">
+                      <title>In progress</title>
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div className="text-gray-300">Collect and analyze Tesla's financial data</div>
+                </div>
+              </div>
+            </div>
           </div>
-          {error && <p className="mt-2 text-red-400 text-sm">{error}</p>}
+
+          {/* Input area */}
+          <div className="border-t border-[rgba(var(--border-color),0.5)] p-4">
+            <div className="flex items-center">
+              <input
+                ref={inputRef}
+                type="text"
+                value={task}
+                onChange={(e) => setTask(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                placeholder="Ask a follow-up question..."
+                className="flex-1 bg-[rgba(var(--code-bg),0.6)] border border-[rgba(var(--border-color),0.7)] rounded px-4 py-2 text-sm"
+                aria-label="Ask a follow-up question"
+              />
+            </div>
+            {error && <p className="mt-2 text-red-400 text-sm">{error}</p>}
+          </div>
+        </div>
+
+        {/* Right panel - Code Editor */}
+        <div className="w-[45%] border-l border-[rgba(var(--border-color),0.5)] bg-[rgb(var(--editor-bg))]">
+          {/* Editor header */}
+          <div className="border-b border-[rgba(var(--border-color),0.5)] p-3 flex justify-between items-center">
+            <div className="flex items-center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mr-2">
+                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5L12 1z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="text-base font-medium">Manus's Computer</span>
+              <button className="ml-1 opacity-40 hover:opacity-100">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Expand">
+                  <title>Expand</title>
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex items-center text-sm text-gray-400">
+              <span>Manus is using</span>
+              <span className="ml-1 text-white">Editor</span>
+            </div>
+          </div>
+
+          {/* Editor content */}
+          <div className="p-3">
+            <div className="flex items-center text-sm text-gray-400 mb-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mr-1">
+                <path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>Creating file</span>
+              <span className="ml-1 text-gray-300">tesla_analysis/data/tesla_financial_analysis.py</span>
+            </div>
+
+            <div className="bg-[rgb(var(--code-bg))] rounded-md p-3">
+              <div className="flex justify-between items-center text-xs text-gray-400 mb-2">
+                <div>tesla_financial_analysis.py</div>
+                <div className="flex items-center">
+                  <button className="opacity-60 hover:opacity-100 p-1">Diff</button>
+                  <button className="opacity-60 hover:opacity-100 p-1">Original</button>
+                  <button className="text-white p-1">Modified</button>
+                </div>
+              </div>
+
+              <div className="code-editor overflow-auto text-xs" style={{maxHeight: "calc(100vh - 250px)"}}>
+                <pre className="text-gray-300 whitespace-pre">{codeExample.split('\n').map((line, i) => (
+                  <div key={i} className="flex">
+                    <span className="line-number">{i+1}</span>
+                    <span>{line}</span>
+                  </div>
+                ))}</pre>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center mt-3">
+              <div className="flex items-center text-gray-400 text-sm">
+                <button aria-label="Previous" className="opacity-60 hover:opacity-100 p-1">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <title>Previous</title>
+                    <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                <button aria-label="Next" className="opacity-60 hover:opacity-100 p-1">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <title>Next</title>
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                <div className="ml-2">3/10</div>
+              </div>
+              <div className="flex items-center">
+                <div className="bg-[rgb(var(--accent-rgb))] rounded-full w-3 h-3 mr-1.5"></div>
+                <span className="text-sm">Manus is working: Collect and analyze Tesla's financial data</span>
+                <button className="ml-2 opacity-40 hover:opacity-100">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Expand">
+                    <title>Expand</title>
+                    <path d="M18 15l-6-6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </div>
+              <div className="text-gray-400 text-xs">0:00 Using terminal</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
